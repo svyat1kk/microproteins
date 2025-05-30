@@ -1,9 +1,12 @@
+#NB Human_Genome_Full_GRCh38.fa is omitted in this repository due to its large size
+#The reference genome may be downloaded from https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/
+
 from pyfaidx import Fasta
 import pandas as pd
 from Bio.Seq import Seq
 
 genome = Fasta("Human_Genome_Full_GRCh38.fa")
-remainings = pd.read_csv("./remainings_to_analyse_14.txt", sep = '\t')
+remainings = pd.read_csv("strong_candidates_14.txt", sep = '\t')
 
 remainings["CHR_ID"] = remainings["CHR_ID"].apply(lambda x: f"chr{x}")
 
@@ -55,7 +58,6 @@ def point_out_mutation(wild, mutated):
     return message
 
 results = []
-
 for _, row in remainings.iterrows():
     chrom = str(row['CHR_ID'])
     start = int(row['starts']) - 1
@@ -64,6 +66,8 @@ for _, row in remainings.iterrows():
     snp_pos_str = row["CHROM"]
     snp_chr, snp_pos = snp_pos_str.split("_")
     risk_allele = row["STRONGEST SNP-RISK ALLELE"].split("-")[1]
+    if risk_allele == "?":
+        risk_allele = row["cadd_Allele"]
 
     seq = genome[chrom][start:end].seq  
     wild_seq = str(seq)
@@ -86,7 +90,7 @@ for _, row in remainings.iterrows():
         "chr_id": chrom,
         "start": start,
         "end": end,
-        "snp_id": row["STRONGEST SNP-RISK ALLELE"],
+        "snp_id": row["STRONGEST SNP-RISK ALLELE"].split("-")[0] + "-" + risk_allele,
         "snp_position": snp_pos_str,
         "orf_name": row["orf_name"],
         "aminoacid_seq_mutation": mutation,
@@ -101,4 +105,4 @@ output_df = pd.DataFrame(results)
 for i in range(remainings.shape[0]):
     if remainings.orf_sequence[i] != output_df.wild_protein[i]:
         print(f"The protein sequence obtained from reference human genome does not match with orf_sequence in row №{i+1} from the dataset with microproteins")
-output_df.to_csv("./mutated_sequences_14.txt", sep='\t', index=False)
+output_df.to_csv("mutated_sequences_14.txt", sep='\t', index=False)
